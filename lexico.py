@@ -17,19 +17,49 @@ digitos = '0123456789'
 class Erro:
 
     # Inicializador da classe
-    def __init__(self, nome_erro, detalhes):
+    def __init__(self, nome_erro, detalhes, pos_inicio):
         self.nome_erro = nome_erro
         self.detalhes = detalhes
+        self.pos_inicio = pos_inicio
     
     # Mensagem de retorno do erro
     def str_retorno(self):
-        self.msg_erro = f'{self.nome_erro}: {self.detalhes}'
+        self.msg_erro = f'{self.nome_erro} : {self.detalhes}\nArquivo: {self.pos_inicio.nome_arq}\nLinha: {self.pos_inicio.lin + 1}'
+        return self.msg_erro
 
 class ErroCharIlegal(Erro):
 
     # Inicializador do erro char ilegal
-    def __init__(self, detalhes):
-        super().__init__("Caractere Ilegal", detalhes)
+    def __init__(self, detalhes, pos_inicio):
+        super().__init__("Caractere Ilegal", detalhes, pos_inicio)
+
+##################################
+## Posição do Analisador Léxico ##
+##################################
+
+# Nessa classe pretendemos manter o rastro da posição em que o nosso analisador léxico está, assim podemos identificar onde está o erro
+class Position:
+
+    # Construtor da classe que caracteriza uma posição
+    def __init__(self, index, lin, col, nome_arq, texto_arq):
+        self.index = index
+        self.col = col
+        self.lin = lin
+        self.nome_arq = nome_arq
+        self.texto_arq = texto_arq
+
+    # Método que avança para a próxima linha e coluna
+    def avanc(self, char_atual):
+        self.index += 1
+        self.col += 1
+        if char_atual == '\n':
+            self.lin += 1
+            self.col = 0
+        return self
+    
+    # Método que retorna a posição atual
+    def copia(self):
+        return Position(self.index, self.lin, self.col, self.nome_arq, self.texto_arq)
 
 ##########################
 ## Definição dos Tokens ##
@@ -55,6 +85,8 @@ class Token:
     def __rep__(self):
         if self.valor:
             return f'{self.tipo}:{self.valor} '
+        else:
+            return f'{self.tipo} '
 
 ####################################
 ## Definição do Analisador Léxico ##
@@ -63,16 +95,18 @@ class Token:
 class Lexico:
 
     # Inicializador da classe
-    def __init__(self, texto):
+    def __init__(self, texto, nome_arq):
         self.texto = texto
-        self.pos = -1 # mantém atualizada a posição atual
+        self.pos = Position(-1, 0, -1, nome_arq, texto) # mantém atualizada a posição atual
         self.char_atual = None # guarda o caractere atualmente atualizado
+        self.nome_arq = nome_arq
         self.avan()
+        
 
     # Avança para a próxima posição do texto
     def avan(self):
-        self.pos += 1
-        self.char_atual = self.texto[self.pos] if self.pos <len(self.texto) else None
+        self.pos.avanc(self.char_atual)
+        self.char_atual = self.texto[self.pos.index] if self.pos.index < len(self.texto) else None
 
     # Método que associa os tokens
     def cria_tokens(self):
@@ -85,20 +119,27 @@ class Lexico:
                 tokens.append(self.cria_num())
             elif self.char_atual == '+':
                 tokens.append(Token(T_PLUS))
+                self.avan()
             elif self.char_atual == '-':
                 tokens.append(Token(T_MINUS))
+                self.avan()
             elif self.char_atual == '*':
                 tokens.append(Token(T_MULT))
+                self.avan()
             elif self.char_atual == '/':
                 tokens.append(Token(T_DIV))
+                self.avan()
             elif self.char_atual == '(':
                 tokens.append(Token(T_LPAREN))
+                self.avan()
             elif self.char_atual == ')':
                 tokens.append(Token(T_MINUS))
+                self.avan()
             else:
+                pos_inicio = self.pos.copia()
                 char = self.char_atual
                 self.avan()
-                return [], ErroCharIlegal(f'Erro no char {char}')
+                return [], ErroCharIlegal(f'Erro no caractere {char}', pos_inicio = pos_inicio)
         return tokens, None
 
     # Método que define se o número é válido e qual seu formato            
@@ -123,9 +164,8 @@ class Lexico:
 ## Função de Interface ##
 #########################    
 
-# Método usado como interface para outros módulos usados ao longo do projeto
-def interface(texto):
-    lexer = Lexico(texto)
+# Método usado como interface para outros módulos usados ao longo do projeto, no caso do analisador léxico vamos criar os tokens com o método abaixo
+def interface(texto, nome_arq):
+    lexer = Lexico(texto, nome_arq)
     tokens, erro = lexer.cria_tokens()
-
     return tokens, erro

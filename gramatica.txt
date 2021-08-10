@@ -1,0 +1,3 @@
+expressao = termo PLUS ou MINUS termo
+termo = fator MUL ou DIV fator
+fator = INT ou FLOAT
