@@ -11,7 +11,7 @@ def run(texto, nome_arq):
     tokens, erro = lexico.interface(texto, nome_arq)
     if erro:
         return None, erro
-    
+
     # Criando a árvore de parsing
     arv_parser = parser.interface(tokens)
     return arv_parser, None

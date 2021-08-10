@@ -18,7 +18,7 @@ class NoNumero:
 
     # Representação do nó
     def __rep__(self):
-        return f'{self.token}'
+        return self.token.__rep__()
 
 class NoOpBinaria:
 
@@ -29,7 +29,7 @@ class NoOpBinaria:
         self.no_dir = no_dir
 
     def __rep__(self):
-        return f'{self.left_node}, {self.token}, {self.right_node}'
+        return f'({self.no_esq.__rep__()}, {self.token.__rep__()}, {self.no_dir.__rep__()})'
 
 #######################
 ## Criação do Parser ##
@@ -40,7 +40,7 @@ class Parser:
     # No construtor do parser temos que manter conhecimento sobre o token atualmente considerado e analisado
     def __init__(self, tokens):
         self.tokens = tokens
-        self.token_index = 1
+        self.token_index = -1
         self.avanc()
 
     # Método responsável por ir navegando entre os tokens passados
@@ -49,6 +49,11 @@ class Parser:
         if self.token_index < len(self.tokens):
             self.token_atual = self.tokens[self.token_index]
         return self.token_atual
+
+    # Método que inicia a realização do Parser
+    def realizar_parse(self):
+        resultado = self.expressao()
+        return resultado
 
     # Criação de fatores
     def fator(self):
@@ -74,10 +79,6 @@ class Parser:
             direita = op_sobre()
             esquerda = NoOpBinaria(esquerda, token_operacao, direita)
         return esquerda
-
-    def realizar_parse(self):
-        resultado = self.expressao()
-        return resultado
 
 # A interface do parser
 def interface(tokens):
