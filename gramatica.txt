@@ -1,3 +1,7 @@
-expressao = termo PLUS ou MINUS termo
-termo = fator MUL ou DIV fator
-fator = INT ou FLOAT
+expressao : termo PLUS ou MINUS termo
+
+termo : fator MUL ou DIV fator
+
+fator   : (PLUS ou MINUS) INT ou FLOAT
+        : LPAREN expressao RPAREN
+

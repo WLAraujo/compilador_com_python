@@ -4,34 +4,13 @@
 # opcionalmente, a um valor. A representação dos token costuma ser simples e clara.                      #
 ##########################################################################################################
 
+import erros
+
 #############################
 ## Definição de Constantes ##
 #############################
 
 digitos = '0123456789'
-
-#####################
-## Definição Erros ##
-#####################
-
-class Erro:
-
-    # Inicializador da classe
-    def __init__(self, nome_erro, detalhes, pos_inicio):
-        self.nome_erro = nome_erro
-        self.detalhes = detalhes
-        self.pos_inicio = pos_inicio
-    
-    # Mensagem de retorno do erro
-    def str_retorno(self):
-        self.msg_erro = f'{self.nome_erro} : {self.detalhes}\nArquivo: {self.pos_inicio.nome_arq}\nLinha: {self.pos_inicio.lin + 1}'
-        return self.msg_erro
-
-class ErroCharIlegal(Erro):
-
-    # Inicializador do erro char ilegal
-    def __init__(self, detalhes, pos_inicio):
-        super().__init__("Caractere Ilegal", detalhes, pos_inicio)
 
 ##################################
 ## Posição do Analisador Léxico ##
@@ -49,7 +28,7 @@ class Position:
         self.texto_arq = texto_arq
 
     # Método que avança para a próxima linha e coluna
-    def avanc(self, char_atual):
+    def avanc(self, char_atual = None):
         self.index += 1
         self.col += 1
         if char_atual == '\n':
@@ -73,13 +52,20 @@ T_DIV = "DIV"
 T_MULT = "MULT"
 T_LPAREN = "LPAREN"
 T_RPAREN = "RPAREN"
+T_EOF = 'EOF'
 
 class Token:
 
     # Inicializador da classe
-    def __init__(self, tipo, valor=''):
+    def __init__(self, tipo, valor='', pos_com = None, pos_fim = None):
         self.tipo = tipo
         self.valor = valor
+        if pos_com:
+            self.pos_com = pos_com.copia()
+            self.pos_fim = pos_com.copia()
+            self.pos_fim.avanc()
+        if pos_fim:
+            self.pos_fim = pos_fim.copia()
 
     # Método para representação em conjunto com o token
     def __rep__(self):
@@ -118,34 +104,36 @@ class Lexico:
             elif self.char_atual in digitos:
                 tokens.append(self.cria_num())
             elif self.char_atual == '+':
-                tokens.append(Token(T_PLUS))
+                tokens.append(Token(T_PLUS, pos_com=self.pos))
                 self.avan()
             elif self.char_atual == '-':
-                tokens.append(Token(T_MINUS))
+                tokens.append(Token(T_MINUS, pos_com=self.pos))
                 self.avan()
             elif self.char_atual == '*':
-                tokens.append(Token(T_MULT))
+                tokens.append(Token(T_MULT, pos_com=self.pos))
                 self.avan()
             elif self.char_atual == '/':
-                tokens.append(Token(T_DIV))
+                tokens.append(Token(T_DIV, pos_com=self.pos))
                 self.avan()
             elif self.char_atual == '(':
-                tokens.append(Token(T_LPAREN))
+                tokens.append(Token(T_LPAREN, pos_com=self.pos))
                 self.avan()
             elif self.char_atual == ')':
-                tokens.append(Token(T_MINUS))
+                tokens.append(Token(T_RPAREN, pos_com=self.pos))
                 self.avan()
             else:
                 pos_inicio = self.pos.copia()
                 char = self.char_atual
                 self.avan()
-                return [], ErroCharIlegal(f'Erro no caractere {char}', pos_inicio = pos_inicio)
+                return [], erros.ErroCharIlegal(f'Erro no caractere {char}', pos_inicio = pos_inicio)
+        tokens.append(Token(T_EOF, pos_com=self.pos))
         return tokens, None
 
     # Método que define se o número é válido e qual seu formato            
     def cria_num(self):
         str_num = ''
         pontos = 0
+        pos_com = self.pos.copia()
         while self.char_atual != None and self.char_atual in digitos + '.':
             if self.char_atual == '.':
                 if pontos == 1:
@@ -156,9 +144,9 @@ class Lexico:
                 str_num += self.char_atual
             self.avan()
         if pontos == 0:
-            return Token(T_INT, int(str_num))
+            return Token(T_INT, int(str_num), pos_com)
         else:
-            return Token(T_FLOAT, float(str_num))
+            return Token(T_FLOAT, float(str_num), pos_com)
 
 #########################
 ## Função de Interface ##
