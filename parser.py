@@ -72,20 +72,12 @@ class Parser:
             return resultado.falha(erros.ErroSintaxeInvalida("Esperado algum operador"), self.token_atual.pos_com)
         return resultado
 
-    # Criação de fatores
-    def fator(self):
+    # Criação de unidade
+    def unidade(self):
         resultado = ResultadoParser()
         token = self.token_atual
 
-        if token.tipo in (lexico.T_PLUS, lexico.T_MINUS):
-            resultado.registro(self.avanc())
-            # Craição de fator associado à op unária
-            fator = resultado.registro(self.fator())
-            if resultado.erro:
-                return resultado
-            return resultado.sucesso(NoOpUnaria(token, fator))
-
-        elif token.tipo in (lexico.T_INT, lexico.T_FLOAT):
+        if token.tipo in (lexico.T_INT, lexico.T_FLOAT):
             resultado.registro(self.avanc())
             return resultado.sucesso(NoNumero(token))
 
@@ -100,26 +92,47 @@ class Parser:
             else:
                 return resultado.falha(erros.ErroSintaxeInvalida("Um ')' era esperado", self.token_atual.pos_com))
 
-        return resultado.falha(erros.ErroSintaxeInvalida("Esperado valor INT ou FLOAT", token.pos_com))
-    
+        return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, +, - ou ( era esperado", self.token_atual.pos_com))
+
+    # Criação de potência
+    def potencia(self):
+        return self.op_bin(self.unidade, (lexico.T_POW, ), self.fator)
+
+    # Criação de fatores
+    def fator(self):
+        resultado = ResultadoParser()
+        token = self.token_atual
+
+        if token.tipo in (lexico.T_PLUS, lexico.T_MINUS):
+            resultado.registro(self.avanc())
+            # Criação de fator associado à op unária
+            fator = resultado.registro(self.fator())
+            if resultado.erro:
+                return resultado
+            return resultado.sucesso(NoOpUnaria(token, fator))
+
+        return self.potencia()
+
     # Criação de termos
     def termo(self):
-        return self.op_bin(self.fator, (lexico.T_DIV, lexico.T_MULT))
+        return self.op_bin(self.potencia, (lexico.T_DIV, lexico.T_MULT))
 
     # Criação de expressões
     def expressao(self):
         return self.op_bin(self.termo, (lexico.T_PLUS, lexico.T_MINUS))
 
     # Método usado para reaproveitar código de termos e expressões que nada mais são que operações binárias
-    def op_bin(self, op_sobre, operacoes):
+    def op_bin(self, funcao_a, operacoes, funcao_b = None):
+        if funcao_b == None:
+            funcao_b = funcao_a
         resultado = ResultadoParser()
-        esquerda = resultado.registro(op_sobre())
+        esquerda = resultado.registro(funcao_a())
         if resultado.erro:
             return resultado
         while self.token_atual.tipo in operacoes:
             token_operacao = self.token_atual
             resultado.registro(self.avanc())
-            direita = resultado.registro(op_sobre())
+            direita = resultado.registro(funcao_b())
             if resultado.erro:
                 return resultado
             esquerda = NoOpBinaria(esquerda, token_operacao, direita)

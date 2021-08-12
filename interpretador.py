@@ -43,6 +43,8 @@ class Interpretador:
             resultado, erro = esq.multiplicar_por(dir)
         elif no.token.tipo == lexico.T_DIV:
             resultado, erro = esq.dividir_por(dir)
+        elif no.token.tipo == lexico.T_POW:
+            resultado, erro = esq.elevar_a(dir)
 
         if erro:
             return capsula_resultado.falha(erro)
@@ -101,6 +103,9 @@ class Numero:
             if outro.valor == 0:
                 return None, erros.ErroRunTime("Divisão por 0", outro.pos_com, self.contexto)
             return Numero(self.valor / outro.valor).def_contexto(self.contexto), None
+    def elevar_a(self, outro):
+        if isinstance(outro, Numero):
+            return Numero(self.valor ** outro.valor).def_contexto(self.contexto), None
 
     # Método que devolve o número
     def __rep__(self):

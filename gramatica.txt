@@ -1,7 +1,13 @@
+Escala de prioridade considerada no nosso parser.
+
 expressao : termo PLUS ou MINUS termo
 
-termo : fator MUL ou DIV fator
+termo   : fator MUL ou DIV fator
 
-fator   : (PLUS ou MINUS) INT ou FLOAT
+fator   : (PLUS ou MINUS) pot
+
+pot     : unidade (POW fator)
+
+unidade : INT ou FLOAT
         : LPAREN expressao RPAREN
 

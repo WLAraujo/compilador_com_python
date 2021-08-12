@@ -1,0 +1,1 @@
+Em nossa linguagem as variáveis funcionarão da seguinte forma, a palavra VAR indica que a próxima string é associada à uma variável.

@@ -53,6 +53,7 @@ T_MULT = "MULT"
 T_LPAREN = "LPAREN"
 T_RPAREN = "RPAREN"
 T_EOF = 'EOF'
+T_POW = 'POW'
 
 class Token:
 
@@ -120,6 +121,9 @@ class Lexico:
                 self.avan()
             elif self.char_atual == ')':
                 tokens.append(Token(T_RPAREN, pos_com=self.pos))
+                self.avan()
+            elif self.char_atual == '^':
+                tokens.append(Token(T_POW, pos_com=self.pos))
                 self.avan()
             else:
                 pos_inicio = self.pos.copia()
