@@ -1,2 +1,2 @@
-# compilador_com_python
-Nesse repositório serão depositados alguns códigos usados enquanto estudava sobre construção de compiladores e linguagens de programação usando a linguagem Python.
+# linguagem_com_python
+Nesse repositório serão depositados alguns códigos usados enquanto estudava sobre construção de compiladores e linguagens de programação usando a linguagem Python. Sendo mais específico, serão aqui depositados todos os códigos usados na construção de uma versão da linguagem BASIC através de Python, para isso serão cosntruídos todas as estruturas necessárias para implementar uma linguagem interpretada, como analisadores léxico e sintático, e também um interpretador.
