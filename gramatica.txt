@@ -1,6 +1,12 @@
-Escala de prioridade considerada no nosso parser.
+Escala de prioridade considerada no nosso parser. Essa estrutura nos ajuda a identificar cada tipo de nó na nossa árvore e como ela vai se organizar em sua construção.
 
-expressao : termo PLUS ou MINUS termo
+expr    :     VAR IDENTIFICADOR = expr
+        :     expr_comp (OU ou E) expr_comp
+  
+expr_comp:    NAO expr_comp
+              expr_arit (COMPARADOR) expr_arit
+                
+expr_arit:   termo PLUS ou MINUS termo
 
 termo   : fator MUL ou DIV fator
 
@@ -8,6 +14,6 @@ fator   : (PLUS ou MINUS) pot
 
 pot     : unidade (POW fator)
 
-unidade : INT ou FLOAT
+unidade : INT ou FLOAT ou IDENTIFICADOR
         : LPAREN expressao RPAREN
 

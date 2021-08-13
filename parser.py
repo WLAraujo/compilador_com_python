@@ -46,6 +46,21 @@ class NoOpUnaria:
     def __rep__(self):
         return f'{self.token_op.__rep__()}, {self.no.__rep__()}'
 
+class NoAcessoVar:
+
+    # Método construtor da classe
+    def __init__(self, token_var):
+        self.token_var = token_var
+        self.pos_com = token_var.pos_com
+
+class NoAtribuiVar:
+
+    # Método construtor da classe
+    def __init__(self, token_var, valor_no):
+        self.valor_no = valor_no
+        self.token_var = token_var
+        self.pos_com = token_var.pos_com
+
 #######################
 ## Criação do Parser ##
 #######################
@@ -68,8 +83,8 @@ class Parser:
     # Método que inicia a realização do Parser
     def realizar_parse(self):
         resultado = self.expressao()
-        if not resultado.erro and self.token_atual.tipo != lexico.T_EOF:
-            return resultado.falha(erros.ErroSintaxeInvalida("Esperado algum operador"), self.token_atual.pos_com)
+        if resultado.erro and self.token_atual.tipo != lexico.T_EOF:
+            return resultado.falha(erros.ErroSintaxeInvalida("Esperado algum operador", self.token_atual.pos_com))
         return resultado
 
     # Criação de unidade
@@ -78,21 +93,29 @@ class Parser:
         token = self.token_atual
 
         if token.tipo in (lexico.T_INT, lexico.T_FLOAT):
-            resultado.registro(self.avanc())
+            resultado.registro_avanc() 
+            self.avanc()
             return resultado.sucesso(NoNumero(token))
 
+        elif token.tipo == lexico.T_IDENTIFICADOR:
+            resultado.registro_avanc() 
+            self.avanc()
+            return resultado.sucesso(NoAcessoVar(token))
+
         elif token.tipo == lexico.T_LPAREN:
-            resultado.registro(self.avanc())
+            resultado.registro_avanc() 
+            self.avanc()
             expressao = resultado.registro(self.expressao())
             if resultado.erro:
                 return resultado
             if self.token_atual.tipo == lexico.T_RPAREN:
-                resultado.registro(self.avanc())
+                resultado.registro_avanc() 
+                self.avanc()
                 return resultado.sucesso(expressao)
             else:
                 return resultado.falha(erros.ErroSintaxeInvalida("Um ')' era esperado", self.token_atual.pos_com))
 
-        return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, +, - ou ( era esperado", self.token_atual.pos_com))
+        return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, identificador, 'VAR', '+', '-' ou '(' era esperado", self.token_atual.pos_com))
 
     # Criação de potência
     def potencia(self):
@@ -104,7 +127,8 @@ class Parser:
         token = self.token_atual
 
         if token.tipo in (lexico.T_PLUS, lexico.T_MINUS):
-            resultado.registro(self.avanc())
+            resultado.registro_avanc() 
+            self.avanc()
             # Criação de fator associado à op unária
             fator = resultado.registro(self.fator())
             if resultado.erro:
@@ -115,23 +139,74 @@ class Parser:
 
     # Criação de termos
     def termo(self):
-        return self.op_bin(self.potencia, (lexico.T_DIV, lexico.T_MULT))
+        return self.op_bin(self.fator, (lexico.T_DIV, lexico.T_MULT))
+
+    # Criação de expressões que envolvam comparações com os operadores <, >, <=, !=, >= e ==
+    def expr_comp(self):
+        resultado = ResultadoParser()
+        if self.token_atual.token_bate(lexico.T_KEYWORD, 'NAO'):
+            token_op = self.token_atual
+            resultado.registro_avanc()
+            self.avanc()
+            no = resultado.registro(self.expr_comp())
+            if resultado.erro:
+                return resultado
+            return resultado.sucesso(NoOpUnaria(token_op, no))
+        
+        no = resultado.registro(self.op_bin(self.expr_arit, (lexico.T_EHIGUAL, lexico.T_MAIORIGUALQ, lexico.T_MENORIGUALQ, lexico.T_MAIORQ, lexico.T_MENORQ, lexico.T_NIGUAL)))
+        if resultado.erro:
+            return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, identificador, 'VAR', '+', '-', '(' ou 'NAO' era esperado", no.pos))
+        
+        return resultado.sucesso(no)
+
+    # Criação de expressões que envolvam operações aritméticas com fatores
+    def expr_arit(self):
+        return self.op_bin(self.termo, (lexico.T_PLUS, lexico.T_MINUS))
 
     # Criação de expressões
     def expressao(self):
-        return self.op_bin(self.termo, (lexico.T_PLUS, lexico.T_MINUS))
+        resultado = ResultadoParser()
+
+        if self.token_atual.token_bate(lexico.T_KEYWORD, 'VAR'):
+            resultado.registro_avanc() 
+            self.avanc()
+            if self.token_atual.tipo != lexico.T_IDENTIFICADOR:
+                return resultado.falha(erros.ErroSintaxeInvalida('Era esperado um identificador', self.token_atual.pos_com))
+            nome_variavel = self.token_atual
+
+            resultado.registro_avanc() 
+            self.avanc()
+            if self.token_atual.tipo != lexico.T_EQ:
+                return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um atribuidor '='", self.token_atual.pos_com))
+            
+            resultado.registro_avanc() 
+            self.avanc()
+            expressao = resultado.registro(self.expressao())
+            if resultado.erro:
+                return resultado
+            else:
+                return resultado.sucesso(NoAtribuiVar(nome_variavel, expressao))
+
+        no = resultado.registro(self.op_bin(self.expr_comp, ((lexico.T_KEYWORD, "E"), (lexico.T_KEYWORD, "OU"))))
+
+        if resultado.erro:
+            return resultado.falha(erros.ErroSintaxeInvalida("Um valor numerico, identificador, '+', '-' ou '(' era esperado", self.token_atual.pos_com))
+        return resultado.sucesso(no)
 
     # Método usado para reaproveitar código de termos e expressões que nada mais são que operações binárias
     def op_bin(self, funcao_a, operacoes, funcao_b = None):
         if funcao_b == None:
             funcao_b = funcao_a
         resultado = ResultadoParser()
+        if type(funcao_a) ==ResultadoParser:
+            print(funcao_a.no)
         esquerda = resultado.registro(funcao_a())
         if resultado.erro:
             return resultado
-        while self.token_atual.tipo in operacoes:
+        while self.token_atual.tipo in operacoes or (self.token_atual.tipo, self.token_atual.valor) in operacoes:
             token_operacao = self.token_atual
-            resultado.registro(self.avanc())
+            resultado.registro_avanc() 
+            self.avanc()
             direita = resultado.registro(funcao_b())
             if resultado.erro:
                 return resultado
@@ -149,14 +224,18 @@ class ResultadoParser:
     def __init__(self):
         self.erro = None
         self.no = None
-    
+        self.cont_avancos = 0
+
     # Método que devolve o resultado do processo de parse
     def registro(self, resultado):
-        if isinstance(resultado, ResultadoParser):
-            if resultado.erro: 
-                self.erro = resultado.erro
-            return resultado.no
-        return resultado
+        self.cont_avancos += resultado.cont_avancos
+        if resultado.erro: 
+            self.erro = resultado.erro
+        return resultado.no
+
+    # Método de registro usado exclusivamente para avançar na análise
+    def registro_avanc(self):
+        self.cont_avancos += 1
 
     # Caso tenhamos sucesso no processo devolvemos o nó
     def sucesso(self, no):
@@ -165,7 +244,8 @@ class ResultadoParser:
 
     # Caso tenhamos fracasso no processo devolvemos o erro
     def falha(self, erro):
-        self.erro = erro
+        if not self.erro or self.cont_avancos == 0:
+            self.erro = erro
         return self
 
 #########################

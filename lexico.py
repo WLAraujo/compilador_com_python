@@ -5,12 +5,15 @@
 ##########################################################################################################
 
 import erros
+import string
 
 #############################
 ## Definição de Constantes ##
 #############################
 
 digitos = '0123456789'
+letras = string.ascii_letters
+letras_e_digitos = letras + digitos
 
 ##################################
 ## Posição do Analisador Léxico ##
@@ -40,20 +43,40 @@ class Position:
     def copia(self):
         return Position(self.index, self.lin, self.col, self.nome_arq, self.texto_arq)
 
+#######################################
+## Definição das Palavras Reservadas ##
+#######################################
+
+palavras_reservadas = [
+    'VAR',
+    'E',
+    'OU',
+    'NAO'
+]
+
 ##########################
 ## Definição dos Tokens ##
 ##########################
 
-T_INT = "INT"
-T_FLOAT = "FLOAT"
-T_PLUS = "PLUS"
-T_MINUS = "MINUS"
-T_DIV = "DIV"
-T_MULT = "MULT"
-T_LPAREN = "LPAREN"
-T_RPAREN = "RPAREN"
-T_EOF = 'EOF'
-T_POW = 'POW'
+T_INT = "INT" # Inteiro
+T_FLOAT = "FLOAT" # Real
+T_PLUS = "PLUS" # Mais
+T_MINUS = "MINUS" # Menos
+T_DIV = "DIV" # Divisão
+T_MULT = "MULT" # Multiplicação
+T_LPAREN = "LPAREN" # Parentêses Esquerdo
+T_RPAREN = "RPAREN" # Parentêses Direito
+T_EOF = "EOF" # Fim do Arquivo
+T_POW = "POW" # Potência
+T_KEYWORD = "KEYWORD" # Palavra Reservada Para Declarar Variável
+T_IDENTIFICADOR = "IDENT" # Identificador de Variável
+T_EQ = "EQ" # Atribuidor
+T_EHIGUAL = "EIGUAL" # É igual
+T_NIGUAL = "NIGUAL" # Não é igual
+T_MENORQ = "MENORQ" # Menor que
+T_MAIORQ = "MAIORQ" # Maior que
+T_MENORIGUALQ = "MENORIGUALQ" # Menor igual que
+T_MAIORIGUALQ = "MAIORIGUALQ" # Maior igual que
 
 class Token:
 
@@ -74,6 +97,10 @@ class Token:
             return f'{self.tipo}:{self.valor} '
         else:
             return f'{self.tipo} '
+
+    # Método que verifica se o token possui o tipo e o valor também passados
+    def token_bate(self, tipo_token, valor):
+        return self.tipo == tipo_token and self.valor == valor
 
 ####################################
 ## Definição do Analisador Léxico ##
@@ -104,6 +131,8 @@ class Lexico:
                 self.avan()
             elif self.char_atual in digitos:
                 tokens.append(self.cria_num())
+            elif self.char_atual in letras:
+                tokens.append(self.cria_ident())
             elif self.char_atual == '+':
                 tokens.append(Token(T_PLUS, pos_com=self.pos))
                 self.avan()
@@ -124,6 +153,22 @@ class Lexico:
                 self.avan()
             elif self.char_atual == '^':
                 tokens.append(Token(T_POW, pos_com=self.pos))
+                self.avan()
+            elif self.char_atual == '!':
+                # O método abaixo verifica se o próximo char é um igual
+                token, erro = self.cria_neh_igual()
+                if erro:
+                    return [], erro
+                tokens.append(token)
+                self.avan()
+            elif self.char_atual == '=':
+                tokens.append(self.cria_eh_igual())
+                self.avan()
+            elif self.char_atual == '>':
+                tokens.append(self.cria_eh_maior_igual())
+                self.avan()
+            elif self.char_atual == '<':
+                tokens.append(self.cria_eh_menor_igual())
                 self.avan()
             else:
                 pos_inicio = self.pos.copia()
@@ -151,6 +196,56 @@ class Lexico:
             return Token(T_INT, int(str_num), pos_com)
         else:
             return Token(T_FLOAT, float(str_num), pos_com)
+
+    # Método que cria tokens para identificadores de variáveis
+    def cria_ident(self):
+        nome_id = ''
+        pos_com = self.pos.copia()
+        while self.char_atual != None and self.char_atual in letras_e_digitos + '_':
+            nome_id += self.char_atual
+            self.avan()
+        if nome_id in palavras_reservadas:
+            tipo_token = T_KEYWORD
+        else:
+            tipo_token = T_IDENTIFICADOR
+        return Token(tipo_token, nome_id, pos_com)
+    
+    def cria_neh_igual(self):
+        pos_com = self.pos.copia()
+        self.avan()
+        if self.char_atual == "=":
+            self.avan()
+            return Token(T_NIGUAL, pos_com=pos_com), None
+        else:
+            self.avan()
+            return None, erros.ErroCharEsperado("'=' é esperado após '!'", self.pos_com)
+
+    def cria_eh_igual(self):
+        tikpo_token = T_EQ
+        pos_com = self.pos.copia()
+        self.avan()
+        if self.char_atual == '=':
+            self.avan()
+            tikpo_token = T_EHIGUAL
+        return Token(tikpo_token, pos_com=pos_com)
+
+    def cria_eh_maior_igual(self):
+        tikpo_token = T_MAIORQ
+        pos_com = self.pos.copia()
+        self.avan()
+        if self.char_atual == '=':
+            self.avan()
+            tikpo_token = T_MAIORIGUALQ
+        return Token(tikpo_token, pos_com=pos_com)
+
+    def cria_eh_menor_igual(self):
+        tikpo_token = T_MENORQ
+        pos_com = self.pos.copia()
+        self.avan()
+        if self.char_atual == '=':
+            self.avan()
+            tikpo_token = T_MENORIGUALQ
+        return Token(tikpo_token, pos_com=pos_com)
 
 #########################
 ## Função de Interface ##

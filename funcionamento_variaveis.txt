@@ -1,1 +1,7 @@
 Em nossa linguagem as variáveis funcionarão da seguinte forma, a palavra VAR indica que a próxima string é associada à uma variável.
+
+Assim temos três pápeis e tokens na construção de uma variável:
+VAR         nome_variável            =          valor
+ |                 |                 |            |
+Palavra        Identificador     Atribuidor     Valor da
+Reservada      da Variável                      Variável

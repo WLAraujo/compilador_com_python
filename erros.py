@@ -2,8 +2,6 @@
 # Nesse módulo definiremos os erros que podem acontecer durante a execução da nossa linguagem de programação  #
 ###############################################################################################################
 
-import contexto
-
 #####################
 ## Definição Erros ##
 #####################
@@ -58,3 +56,8 @@ class ErroRunTime(Erro):
             pos = contexto.pos_pai
             contexto = contexto.pai
         return resultado
+
+# Classe de erro que é lançada quando temos a expectativa por um caractere mas recebemos outro
+class ErroCharEsperado(Erro):
+    def __init__(self, detalhes, pos_com):
+        super().__init__('Outro caractere esperado', pos_com)
