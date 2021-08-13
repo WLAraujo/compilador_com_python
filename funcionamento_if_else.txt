@@ -1,0 +1,8 @@
+SE, MAS_SE, SENAO e ENTAO serão palavras reservadas
+
+SE <condição> ENTAO
+<expressão>
+MAS_SE <condição> ENTAO
+<expressão>
+SENAO <condição> ENTAO
+

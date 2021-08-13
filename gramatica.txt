@@ -16,4 +16,8 @@ pot     : unidade (POW fator)
 
 unidade : INT ou FLOAT ou IDENTIFICADOR
         : LPAREN expressao RPAREN
+        : expr_cond
 
+expr_cond:      SE expr ENTAO expr
+                MAS_SE expr ENTAO expr
+                SENAO expr

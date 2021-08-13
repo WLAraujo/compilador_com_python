@@ -9,5 +9,5 @@ while True:
     resultado, erro = interfaces.run(comando, "<<Entrada do shell>>")
     if erro:
         print(erro.str_retorno())
-    else:
+    elif resultado:
         print(resultado.__rep__())

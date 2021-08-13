@@ -61,6 +61,15 @@ class NoAtribuiVar:
         self.token_var = token_var
         self.pos_com = token_var.pos_com
 
+class NoSe:
+
+    # Método construtor da classe
+    def __init__(self, casos, caso_senao):
+        self.casos = casos
+        self.caso_senao = caso_senao
+        self.pos_com = self.casos[0][0].pos_com
+
+
 #######################
 ## Criação do Parser ##
 #######################
@@ -86,6 +95,50 @@ class Parser:
         if resultado.erro and self.token_atual.tipo != lexico.T_EOF:
             return resultado.falha(erros.ErroSintaxeInvalida("Esperado algum operador", self.token_atual.pos_com))
         return resultado
+
+    # Criação de expressões que usam SE, MAS_SE, SENAO e ENTAO
+    def expr_cond(self):
+        resultado = ResultadoParser()
+        casos = []
+        caso_senao = None
+        if not self.token_atual.token_bate(lexico.T_KEYWORD, 'SE'):
+            return resultado.falha(erros.ErroSintaxeInvalida('Era esperado um SE', self.token_atual.pos_com))
+        resultado.registro_avanc()
+        self.avanc()
+        condicao = resultado.registro(self.expressao())
+        if resultado.erro:
+            return resultado
+        if not self.token_atual.token_bate(lexico.T_KEYWORD, 'ENTAO'):
+            return resultado.falha(erros.ErroSintaxeInvalida('Era esperado um ENTAO', self.token_atual.pos_com))
+        resultado.registro_avanc()
+        self.avanc()
+        expressao = resultado.registro(self.expressao())
+        if resultado.erro:
+            return resultado
+        casos.append((condicao, expressao))
+        while self.token_atual.token_bate(lexico.T_KEYWORD, 'MAS_SE'):
+            resultado.registro_avanc()
+            self.avanc()
+            condicao = resultado.registro(self.expressao())
+            if resultado.erro:
+                return resultado
+            if not self.token_atual.token_bate(lexico.T_KEYWORD, 'ENTAO'):
+                return resultado.falha(erros.ErroSintaxeInvalida('Era esperado um ENTAO', self.token_atual.pos_com))
+            resultado.registro_avanc()
+            self.avanc()
+            expressao = resultado.registro(self.expressao())
+            if resultado.erro:
+                return resultado
+            casos.append((condicao, expressao))
+        if self.token_atual.token_bate(lexico.T_KEYWORD, 'SENAO'):
+            resultado.registro_avanc()
+            self.avanc()
+            expressao = resultado.registro(self.expressao())
+            if resultado.erro:
+                return resultado
+            caso_senao = expressao
+        return resultado.sucesso(NoSe(casos, caso_senao))
+
 
     # Criação de unidade
     def unidade(self):
@@ -114,6 +167,12 @@ class Parser:
                 return resultado.sucesso(expressao)
             else:
                 return resultado.falha(erros.ErroSintaxeInvalida("Um ')' era esperado", self.token_atual.pos_com))
+        
+        elif token.token_bate(lexico.T_KEYWORD, 'SE'):
+            expr_se = resultado.registro(self.expr_cond())
+            if resultado.erro:
+                return resultado
+            return resultado.sucesso(expr_se)
 
         return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, identificador, 'VAR', '+', '-' ou '(' era esperado", self.token_atual.pos_com))
 
@@ -155,7 +214,7 @@ class Parser:
         
         no = resultado.registro(self.op_bin(self.expr_arit, (lexico.T_EHIGUAL, lexico.T_MAIORIGUALQ, lexico.T_MENORIGUALQ, lexico.T_MAIORQ, lexico.T_MENORQ, lexico.T_NIGUAL)))
         if resultado.erro:
-            return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, identificador, 'VAR', '+', '-', '(' ou 'NAO' era esperado", no.pos))
+            return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, identificador, 'VAR', '+', '-', '(' ou 'NAO' era esperado", self.token_atual.pos_com))
         
         return resultado.sucesso(no)
 

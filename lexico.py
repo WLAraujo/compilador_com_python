@@ -51,7 +51,11 @@ palavras_reservadas = [
     'VAR',
     'E',
     'OU',
-    'NAO'
+    'NAO',
+    'SE',
+    'MAS_SE',
+    'SENAO',
+    'ENTAO'
 ]
 
 ##########################

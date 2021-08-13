@@ -20,7 +20,7 @@ class Interpretador:
         return metodo(no, contexto)
 
     def sem_visita(self, no, contexto):
-        raise Exception(f'Sem método de visita visita_{type(no).__name__}')
+        raise Exception(f'Sem método de visita visita_{type(no)}')
 
     def visita_NoNumero(self, no, contexto):
         return ResultadoRT().sucesso(Numero(no.token.valor).def_contexto(contexto).def_pos(no.pos_com))
@@ -100,6 +100,25 @@ class Interpretador:
             return resultado.falha(erro)
         else:
             return resultado.sucesso(numero.def_pos(no.pos_com))
+    
+    def visita_NoSe(self, no, contexto):
+        resultado = ResultadoRT()
+        for condicao, expressao in no.casos:
+            valor_condicao = resultado.registro(self.visita(condicao, contexto))
+            if resultado.erro:
+                return resultado
+            if valor_condicao.eh_vdd():
+                expressao_valor = resultado.registro(self.visita(expressao, contexto))
+                if resultado.erro:
+                    return resultado
+                return resultado.sucesso(expressao_valor)
+        if no.caso_senao:
+            valor_senao = resultado.registro(self.visita(no.caso_senao, contexto))
+            if resultado.erro:
+                return resultado
+            return resultado.sucesso(valor_senao)
+        return resultado.sucesso(None)
+
 
 ##############################
 ## Armazenamento de Valores ##
@@ -165,7 +184,11 @@ class Numero:
         if isinstance(outro, Numero):
             return Numero(int(self.valor or outro.valor)).def_contexto(self.contexto), None
     def negar(self):
-        return Numero(1 if self.value == 0 else 0).def_contexto(self.contexto), None
+        return Numero(1 if self.valor == 0 else 0).def_contexto(self.contexto), None
+
+    # Método que devolve se o valor representa verdadeiro ou falso
+    def eh_vdd(self):
+        return self.valor != 0
 
     # Método que devolve o número
     def __rep__(self):
