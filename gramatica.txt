@@ -21,3 +21,8 @@ unidade : INT ou FLOAT ou IDENTIFICADOR
 expr_cond:      SE expr ENTAO expr
                 MAS_SE expr ENTAO expr
                 SENAO expr
+
+expr_enqt:      PARA IDENTIFICADOR EQ expressao ATE expressao (C_PASSO expressao) REALIZE expressao
+
+
+expr_para:      ENQUANTO expressao REALIZE expressao

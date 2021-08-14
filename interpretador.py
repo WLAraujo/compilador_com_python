@@ -119,6 +119,49 @@ class Interpretador:
             return resultado.sucesso(valor_senao)
         return resultado.sucesso(None)
 
+    def visita_NoPara(self, no, contexto):
+        resultado = ResultadoRT()
+        valor_inicial = resultado.registro(self.visita(no.valor_inicial, contexto))
+        if resultado.erro:
+            return resultado
+        valor_final = resultado.registro(self.visita(no.valor_final, contexto))
+        if resultado.erro:
+                return resultado
+        if no.valor_passo:
+            valor_passo = resultado.registro(self.visita(no.valor_passo, contexto))
+            if resultado.erro:
+                return erros
+        else:
+            valor_passo = Numero(1)
+        i = valor_inicial.valor
+        if valor_passo.valor >= 0:
+            condicao = True if i < valor_final.valor else False
+        else:
+            condicao = True if i > valor_final.valor else False
+        while condicao:
+            contexto.tabela_simbolos.set(no.token_var.valor, Numero(i))
+            i+=valor_passo.valor
+            resultado.registro(self.visita(no.no_corpo, contexto))
+            if resultado.erro:
+                return resultado
+            if valor_passo.valor >= 0:
+                condicao = True if i < valor_final.valor else False
+            else:
+                condicao = True if i > valor_final.valor else False
+        return resultado.sucesso(None)
+
+    def visita_NoEnquanto(self, no, contexto):
+        resultado = ResultadoRT()
+        while True:
+            condicao = resultado.registro(self.visita(no.no_condicao, contexto)) 
+            if resultado.erro:
+                return resultado
+            if not condicao.eh_vdd():
+                break
+            resultado.registro(self.visita(no.no_corpo, contexto))
+            if resultado.erro:
+                return resultado
+        return resultado.sucesso(None)         
 
 ##############################
 ## Armazenamento de Valores ##
@@ -220,6 +263,7 @@ class ResultadoRT:
     # Método que representa a falha da operação 
     def falha(self, erro):
         self.erro = erro
+        self.valor = None
         return self
 
 ##################################
@@ -279,6 +323,8 @@ def interface(arv_parser):
     contexto = Contexto('<local>')
     contexto.tabela_simbolos = tabela_simbolos_global
     resultado = interpretador.visita(arv_parser, contexto)
+    if type(resultado) == erros.ErroRunTime:
+        return None, resultado
     return resultado.valor, resultado.erro
 
 

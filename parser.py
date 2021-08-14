@@ -69,10 +69,32 @@ class NoSe:
         self.caso_senao = caso_senao
         self.pos_com = self.casos[0][0].pos_com
 
+class NoPara:
+
+    #Método construtor da classe
+    def __init__(self, token_var, valor_inicial, valor_final, valor_passo, no_corpo):
+        self.token_var = token_var
+        self.valor_inicial = valor_inicial
+        self.valor_final = valor_final
+        self.valor_passo = valor_passo
+        self.no_corpo = no_corpo
+        self.pos_com = self.token_var.pos_com
+
+class NoEnquanto:
+
+    # Método construtor da classe
+    def __init__(self, no_condicao, no_corpo):
+        self.no_condicao = no_condicao
+        self.no_corpo = no_corpo
+        self.pos_com = self.no_condicao.pos_com
+
+
 
 #######################
 ## Criação do Parser ##
 #######################
+
+# Cada método da classe Parser visa analisar uma regra sintática definida em nossa gramática
 
 class Parser:
 
@@ -95,6 +117,78 @@ class Parser:
         if resultado.erro and self.token_atual.tipo != lexico.T_EOF:
             return resultado.falha(erros.ErroSintaxeInvalida("Esperado algum operador", self.token_atual.pos_com))
         return resultado
+
+    # Criação de expressões que envolvam laço de iteração PARA
+    def expr_para(self):
+        resultado = ResultadoParser()
+
+        if not self.token_atual.token_bate(lexico.T_KEYWORD, 'PARA'):
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um 'PARA'", self.token_atual.pos_com))
+        resultado.registro_avanc()
+        self.avanc()
+
+        if self.token_atual.tipo != lexico.T_IDENTIFICADOR:
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um identificador de variável", self.token_atual.pos_com))
+        nome_var = self.token_atual
+        resultado.registro_avanc()
+        self.avanc() 
+
+        if self.token_atual.tipo != lexico.T_EQ:
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um '='", self.token_atual.pos_com))
+        resultado.registro_avanc()
+        self.avanc() 
+
+        valor_inicial = resultado.registro(self.expressao())
+        if resultado.erro:
+            return resultado
+
+        if not self.token_atual.token_bate(lexico.T_KEYWORD, 'ATE'):
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um 'ATE'", self.token_atual.pos_com))
+        resultado.registro_avanc()
+        self.avanc()
+
+        valor_final = resultado.registro(self.expressao())
+        if resultado.erro:
+            return resultado
+
+        if self.token_atual.token_bate(lexico.T_KEYWORD, 'C_PASSO'):
+            resultado.registro_avanc()
+            self.avanc()
+            valor_passo = resultado.registro(self.expressao())
+            if resultado.erro:
+                return resultado
+        else:
+            valor_passo = None
+        
+        if not self.token_atual.token_bate(lexico.T_KEYWORD, 'REALIZE'):
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um 'REALIZE'", self.token_atual.pos_com))
+        resultado.registro_avanc()
+        self.avanc()
+
+        corpo = resultado.registro(self.expressao())
+        if resultado.erro:
+            return resultado
+
+        return resultado.sucesso(NoPara(nome_var, valor_inicial, valor_final, valor_passo, corpo))
+
+    # Criação de expressões que envolvam laço de iteração ENQUANTO
+    def expr_enquanto(self):
+        resultado = ResultadoParser()
+        if not self.token_atual.token_bate(lexico.T_KEYWORD, 'ENQUANTO'):
+            return resultado.failure(erros.ErroSintaxeInvalida("Era esperado um 'ENQUANTO'", self.token_atual.pos_com))
+        resultado.registro_avanc()
+        self.avanc()
+        condicao = resultado.registro(self.expressao())
+        if resultado.erro: 
+            return resultado
+        if not self.token_atual.token_bate(lexico.T_KEYWORD, 'REALIZE'):
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um 'REALIZE", self.token_atual.pos_com))
+        resultado.registro_avanc()
+        self.avanc()
+        corpo = resultado.registro(self.expressao())
+        if resultado.erro: 
+            return resultado
+        return resultado.sucesso(NoEnquanto(condicao, corpo))
 
     # Criação de expressões que usam SE, MAS_SE, SENAO e ENTAO
     def expr_cond(self):
@@ -173,6 +267,18 @@ class Parser:
             if resultado.erro:
                 return resultado
             return resultado.sucesso(expr_se)
+
+        elif token.token_bate(lexico.T_KEYWORD, 'PARA'):
+            expr_para = resultado.registro(self.expr_para())
+            if resultado.erro:
+                return resultado
+            return resultado.sucesso(expr_para)
+        
+        elif token.token_bate(lexico.T_KEYWORD, 'ENQUANTO'):
+            expr_enquanto = resultado.registro(self.expr_enquanto())
+            if resultado.erro:
+                return resultado
+            return resultado.sucesso(expr_enquanto)
 
         return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, identificador, 'VAR', '+', '-' ou '(' era esperado", self.token_atual.pos_com))
 

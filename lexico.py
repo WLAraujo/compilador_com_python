@@ -55,7 +55,12 @@ palavras_reservadas = [
     'SE',
     'MAS_SE',
     'SENAO',
-    'ENTAO'
+    'ENTAO',
+    'PARA',
+    'ATE',
+    'C_PASSO',
+    'REALIZE',
+    'ENQUANTO'
 ]
 
 ##########################
