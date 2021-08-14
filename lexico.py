@@ -60,7 +60,8 @@ palavras_reservadas = [
     'ATE',
     'C_PASSO',
     'REALIZE',
-    'ENQUANTO'
+    'ENQUANTO',
+    'FUN'
 ]
 
 ##########################
@@ -86,6 +87,9 @@ T_MENORQ = "MENORQ" # Menor que
 T_MAIORQ = "MAIORQ" # Maior que
 T_MENORIGUALQ = "MENORIGUALQ" # Menor igual que
 T_MAIORIGUALQ = "MAIORIGUALQ" # Maior igual que
+T_VIRG = 'VIRGULA' # Virgula
+T_SETA = 'SETA' # Seta ->
+T_STRING = 'STRING' # STRING
 
 class Token:
 
@@ -146,8 +150,7 @@ class Lexico:
                 tokens.append(Token(T_PLUS, pos_com=self.pos))
                 self.avan()
             elif self.char_atual == '-':
-                tokens.append(Token(T_MINUS, pos_com=self.pos))
-                self.avan()
+                tokens.append(self.cria_menos_ou_seta())
             elif self.char_atual == '*':
                 tokens.append(Token(T_MULT, pos_com=self.pos))
                 self.avan()
@@ -160,6 +163,8 @@ class Lexico:
             elif self.char_atual == ')':
                 tokens.append(Token(T_RPAREN, pos_com=self.pos))
                 self.avan()
+            elif self.char_atual == '"':
+                tokens.append(self.cria_string())
             elif self.char_atual == '^':
                 tokens.append(Token(T_POW, pos_com=self.pos))
                 self.avan()
@@ -178,6 +183,9 @@ class Lexico:
                 self.avan()
             elif self.char_atual == '<':
                 tokens.append(self.cria_eh_menor_igual())
+                self.avan()
+            elif self.char_atual == ',':
+                tokens.append(Token(T_VIRG, pos_com=self.pos))
                 self.avan()
             else:
                 pos_inicio = self.pos.copia()
@@ -255,6 +263,42 @@ class Lexico:
             self.avan()
             tikpo_token = T_MENORIGUALQ
         return Token(tikpo_token, pos_com=pos_com)
+
+    # Método que decide se o que temos é uma seta ou sinal de menos
+    def cria_menos_ou_seta(self):
+        tipo_token = T_MINUS
+        pos_com = self.pos.copia()
+        self.avan()
+        if self.char_atual == '>':
+            self.avan()
+            tipo_token = T_SETA
+        return Token(tipo_token, pos_com)
+
+    
+
+    def cria_string(self):
+        string = ''
+        pos_com = self.pos.copia()
+        caracter_escape = False
+        self.avan()
+        caracteres_escape = {
+        '-n': '\n',
+        '-t': '\t'
+        }
+        while self.char_atual != None and (self.char_atual != '"' or caracter_escape):
+            # Caracteres de escape
+            if caracter_escape:
+                string += caracteres_escape.get(self.char_atual)
+            else:
+                if self.char_atual == '\\':
+                    caracter_escape = True
+                else:
+                    string += self.char_atual
+            self.avan()
+            caracter_escape = False
+        self.avan()
+        return Token(T_STRING, string, pos_com)
+
 
 #########################
 ## Função de Interface ##

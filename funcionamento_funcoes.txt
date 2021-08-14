@@ -1,0 +1,7 @@
+Possíveis usos de funções:
+
+Definir função: FN nome_função (parametros) -> expressao
+Usar função: nome (parametros)
+Atribuir função a variável: VAR identificador = nome_função
+Função anônima: FN (parametros) -> expressao
+

@@ -14,9 +14,14 @@ fator   : (PLUS ou MINUS) pot
 
 pot     : unidade (POW fator)
 
-unidade : INT ou FLOAT ou IDENTIFICADOR
+chamada :       unidade (def_fun)
+
+unidade : INT ou FLOAT ou IDENTIFICADOR ou STRING
         : LPAREN expressao RPAREN
         : expr_cond
+        : expr_enqt
+        : expr_para
+        : def_fun
 
 expr_cond:      SE expr ENTAO expr
                 MAS_SE expr ENTAO expr
@@ -26,3 +31,5 @@ expr_enqt:      PARA IDENTIFICADOR EQ expressao ATE expressao (C_PASSO expressao
 
 
 expr_para:      ENQUANTO expressao REALIZE expressao
+
+def_fun :       FUN (IDENTIFICADOR) LPAREN (IDENTIFICADORES SEPARADOS POR VÍRGULA) RPAREN SETA expr   

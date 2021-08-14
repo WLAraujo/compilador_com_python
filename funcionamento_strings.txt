@@ -1,0 +1,2 @@
+Sobre strings, serão identificadas na nossa linguagem através de aspas duplas: "Textos"
+Também teremos casos especiais, como representar novas linhas através de \n e barras com \\

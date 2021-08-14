@@ -36,7 +36,6 @@ class NoOpBinaria:
 
 class NoOpUnaria:
 
-    # Método construtor da classe
     def __init__(self, token_op, no):
         self.token_op = token_op
         self.no = no
@@ -48,14 +47,12 @@ class NoOpUnaria:
 
 class NoAcessoVar:
 
-    # Método construtor da classe
     def __init__(self, token_var):
         self.token_var = token_var
         self.pos_com = token_var.pos_com
 
 class NoAtribuiVar:
 
-    # Método construtor da classe
     def __init__(self, token_var, valor_no):
         self.valor_no = valor_no
         self.token_var = token_var
@@ -63,7 +60,6 @@ class NoAtribuiVar:
 
 class NoSe:
 
-    # Método construtor da classe
     def __init__(self, casos, caso_senao):
         self.casos = casos
         self.caso_senao = caso_senao
@@ -71,7 +67,6 @@ class NoSe:
 
 class NoPara:
 
-    #Método construtor da classe
     def __init__(self, token_var, valor_inicial, valor_final, valor_passo, no_corpo):
         self.token_var = token_var
         self.valor_inicial = valor_inicial
@@ -82,13 +77,41 @@ class NoPara:
 
 class NoEnquanto:
 
-    # Método construtor da classe
     def __init__(self, no_condicao, no_corpo):
         self.no_condicao = no_condicao
         self.no_corpo = no_corpo
         self.pos_com = self.no_condicao.pos_com
 
+class NoDefFun:
 
+    def __init__(self, token_nome_fun, tokens_fun_args, no_corpo):
+        self.token_nome_fun = token_nome_fun
+        self.tokens_fun_args = tokens_fun_args
+        self.no_corpo = no_corpo
+        if self.token_nome_fun:
+            self.pos_com = self.token_nome_fun.pos_com
+        elif len(self.tokens_fun_args) > 0:
+            self.pos_com = self.tokens_fun_args[0].pos_com
+        else:
+        	self.pos_com = self.no_corpo.pos_com
+
+class NoChamadaFun:
+
+    def __init__(self, no_a_chamar, nos_args):
+        self.no_a_chamar = no_a_chamar
+        self.nos_args = nos_args
+        self.pos_com = self.no_a_chamar.pos_com
+
+class NoString:
+    
+    # Construtor do nó string
+    def __init__(self, token):
+        self.token = token
+        self.pos_com = self.token.pos_com
+
+    # Representação do nó
+    def __rep__(self):
+        return self.token.__rep__()
 
 #######################
 ## Criação do Parser ##
@@ -175,7 +198,7 @@ class Parser:
     def expr_enquanto(self):
         resultado = ResultadoParser()
         if not self.token_atual.token_bate(lexico.T_KEYWORD, 'ENQUANTO'):
-            return resultado.failure(erros.ErroSintaxeInvalida("Era esperado um 'ENQUANTO'", self.token_atual.pos_com))
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um 'ENQUANTO'", self.token_atual.pos_com))
         resultado.registro_avanc()
         self.avanc()
         condicao = resultado.registro(self.expressao())
@@ -233,7 +256,6 @@ class Parser:
             caso_senao = expressao
         return resultado.sucesso(NoSe(casos, caso_senao))
 
-
     # Criação de unidade
     def unidade(self):
         resultado = ResultadoParser()
@@ -243,6 +265,11 @@ class Parser:
             resultado.registro_avanc() 
             self.avanc()
             return resultado.sucesso(NoNumero(token))
+
+        if token.tipo == lexico.T_STRING:
+            resultado.registro_avanc() 
+            self.avanc()
+            return resultado.sucesso(NoString(token))
 
         elif token.tipo == lexico.T_IDENTIFICADOR:
             resultado.registro_avanc() 
@@ -280,11 +307,54 @@ class Parser:
                 return resultado
             return resultado.sucesso(expr_enquanto)
 
-        return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, identificador, 'VAR', '+', '-' ou '(' era esperado", self.token_atual.pos_com))
+        elif token.token_bate(lexico.T_KEYWORD, 'FUN'):
+            def_func = resultado.registro(self.func_def())
+            if resultado.erro:
+                return resultado
+            return resultado.sucesso(def_func)
 
+        return resultado.falha(erros.ErroSintaxeInvalida("Um valor int, float, identificador, 'VAR', '+', '-', '(', 'SE', 'ENQUANTO', 'PARA' ou 'FUN' era esperado", self.token_atual.pos_com))
+
+    # Criação da chamada de funções
+    def chamada(self):
+        resultado = ResultadoParser()
+        unidade = resultado.registro(self.unidade())
+        if resultado.erro: 
+            return resultado
+        
+        if self.token_atual.tipo == lexico.T_LPAREN:
+            resultado.registro_avanc()
+            self.avanc()
+
+            nos_args = []
+
+            if self.token_atual.tipo == lexico.T_RPAREN:
+                resultado.registro_avanc()
+                self.avanc()
+
+            else:
+                nos_args.append(resultado.registro(self.expressao()))
+                if resultado.erro:
+                    return resultado.failure(erros.ErroSintaxeInvalida("Esperado ')', 'VAR', 'SE', 'PARA', 'ENQUANTO', 'FUN', int, float, identificador, '+', '-', '(' ou 'NAO'", self.token_atual.pos_com))
+                
+                while self.token_atual.tipo == lexico.T_VIRG:
+                    resultado.registro_avanc()
+                    self.avanc()
+                    nos_args.append(resultado.registro(self.expressao()))
+                    if resultado.erro: 
+                        return resultado
+
+                if self.token_atual.tipo != lexico.T_RPAREN:
+                    return resultado.failure(erros.ErroSintaxeInvalida("Esperado ',' ou ')'", self.token_atual.pos_com))
+
+                resultado.registro_avanc()
+                self.avanc()
+            return resultado.sucesso(NoChamadaFun(unidade, nos_args))
+        return resultado.sucesso(unidade)
+        
     # Criação de potência
     def potencia(self):
-        return self.op_bin(self.unidade, (lexico.T_POW, ), self.fator)
+        return self.op_bin(self.chamada, (lexico.T_POW, ), self.fator)
 
     # Criação de fatores
     def fator(self):
@@ -357,6 +427,62 @@ class Parser:
         if resultado.erro:
             return resultado.falha(erros.ErroSintaxeInvalida("Um valor numerico, identificador, '+', '-' ou '(' era esperado", self.token_atual.pos_com))
         return resultado.sucesso(no)
+
+    # Definindo uma função
+    def func_def(self):
+        resultado = ResultadoParser()
+
+        if not self.token_atual.token_bate(lexico.T_KEYWORD, 'FUN'):
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado 'FUN'",self.token_atual.pos_com))
+        
+        resultado.registro_avanc()
+        self.avanc()
+        if self.token_atual.tipo == lexico.T_IDENTIFICADOR:
+            token_nome_fun = self.token_atual
+            resultado.registro_avanc()
+            self.avanc()
+            if self.token_atual.tipo != lexico.T_LPAREN:
+                return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um ' ' ", self.token_atual.pos))
+        else:
+            token_nome_fun = None
+            if self.token_atual.tipo != lexico.T_LPAREN:
+                return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um identificador de variável ou '(' ", self.token_atual.pos))
+        resultado.registro_avanc()
+        self.avanc()
+        
+        # Lembrando que podemos ter funções com e sem parâmetros
+        tokens_args = []
+        if self.token_atual.tipo == lexico.T_IDENTIFICADOR:
+            tokens_args.append(self.token_atual)
+            resultado.registro_avanc()
+            self.avanc()
+            while self.token_atual.tipo == lexico.T_VIRG:
+                resultado.registro_avanc()
+                self.avanc()
+                if self.token_atual.tipo != lexico.T_IDENTIFICADOR:
+                    return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um identificador de variável", self.token_atual.pos))
+                tokens_args.append(self.token_atual)
+                resultado.registro_avanc()
+                self.avanc()
+            if self.token_atual.tipo != lexico.T_RPAREN:
+                return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um ')' ", self.token_atual.pos))
+        
+        else:
+            if self.token_atual.tipo != lexico.T_RPAREN:
+                return resultado.falha(erros.ErroSintaxeInvalida("Era esperado um ')' ", self.token_atual.pos))
+        resultado.registro_avanc()
+        self.avanc()
+
+        if self.token_atual.tipo != lexico.T_SETA:
+            return resultado.falha(erros.ErroSintaxeInvalida("Era esperado uma '->' ", self.token_atual.pos))
+        
+        resultado.registro_avanc()
+        self.avanc()
+        no_corpo = resultado.registro(self.expressao())
+        if resultado.erro: 
+            return resultado
+        
+        return resultado.sucesso(NoDefFun(token_nome_fun ,tokens_args, no_corpo))
 
     # Método usado para reaproveitar código de termos e expressões que nada mais são que operações binárias
     def op_bin(self, funcao_a, operacoes, funcao_b = None):

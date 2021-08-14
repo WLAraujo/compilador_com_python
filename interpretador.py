@@ -23,7 +23,7 @@ class Interpretador:
         raise Exception(f'Sem método de visita visita_{type(no)}')
 
     def visita_NoNumero(self, no, contexto):
-        return ResultadoRT().sucesso(Numero(no.token.valor).def_contexto(contexto).def_pos(no.pos_com))
+        return ResultadoRT().sucesso(Numero(no.token.valor).set_contexto(contexto).set_pos(no.pos_com))
 
     def visita_NoAcessoVar(self, no, contexto):
         resultado = ResultadoRT()
@@ -81,7 +81,7 @@ class Interpretador:
         if erro:
             return capsula_resultado.falha(erro)
         else:
-            return capsula_resultado.sucesso(resultado.def_pos(no.pos_com))
+            return capsula_resultado.sucesso(resultado.set_pos(no.pos_com))
     
     def visita_NoOpUnaria(self, no, contexto):
         resultado = ResultadoRT()
@@ -99,7 +99,7 @@ class Interpretador:
         if erro:
             return resultado.falha(erro)
         else:
-            return resultado.sucesso(numero.def_pos(no.pos_com))
+            return resultado.sucesso(numero.set_pos(no.pos_com))
     
     def visita_NoSe(self, no, contexto):
         resultado = ResultadoRT()
@@ -161,73 +161,210 @@ class Interpretador:
             resultado.registro(self.visita(no.no_corpo, contexto))
             if resultado.erro:
                 return resultado
-        return resultado.sucesso(None)         
+        return resultado.sucesso(None)      
+
+    def visita_NoDefFun(self, no, contexto):
+        resultado = ResultadoRT()
+        nome = no.token_nome_fun.valor if no.token_nome_fun else None
+        no_corpo = no.no_corpo
+        args = [nome_arg.valor for nome_arg in no.tokens_fun_args]
+        valor = Funcao(nome, no_corpo, args).set_contexto(contexto).set_pos(no.pos_com)
+		
+        # Caso a função não seja anônima temos que setar um novo contexto para ela
+        if no.token_nome_fun:
+            contexto.tabela_simbolos.set(nome, valor)
+            
+        return resultado.sucesso(valor)
+    
+    def visita_NoChamadaFun(self, no, contexto):
+        resultado = ResultadoRT()
+        args = []
+
+        # Checamos se existe erro na função em si
+        no_a_chamar = resultado.registro(self.visita(no.no_a_chamar, contexto))
+        if resultado.erro: 
+            return resultado
+        no_a_chamar = no_a_chamar.copia().set_pos(no.pos_com)
+
+        # Checamos erros nos nossos argumentos
+        for no_arg in no.nos_args:
+            args.append(resultado.registro(self.visita(no_arg, contexto)))
+            if resultado.erro: 
+                return resultado
+
+        retorna_valor = resultado.registro(no_a_chamar.executar(args))
+        if resultado.erro: 
+            return resultado
+        return resultado.sucesso(retorna_valor)
+
+    def visita_NoString(self, no, contexto):
+        return ResultadoRT().sucesso(String(no.token.valor).set_contexto(contexto).set_pos(no.pos_com))
 
 ##############################
 ## Armazenamento de Valores ##
 ##############################
 
-class Numero:
+# Classe mãe para classes que armazenam valores
+class Valor():
 
-    # Método construtor
-    def __init__(self, valor):
-        self.valor = valor
-        self.def_pos()
-        self.def_contexto()
-
-    # Método que mantém registro de onde está o número no código
-    def def_pos(self, pos_com=None):
+    def __init__(self):
+        self.set_pos()
+        self.set_contexto()
+    
+    def set_pos(self, pos_com = None):
         self.pos_com = pos_com
         return self
 
-    def def_contexto(self, contexto = None):
+    def set_contexto(self, contexto = None):
+        self.contexto = contexto
+        return self
+    
+    # Os métodos abaixo só funcionam caso não ocorra sobrescrita de métodos
+
+    # Operações de números
+    def adicionar_a(self, outro):
+        return None, self.op_ilegal(outro)
+    def subtrair_de(self, outro):
+        return None, self.op_ilegal(outro)
+    def multiplicar_por(self, outro):
+        return None, self.op_ilegal(outro)
+    def dividir_por(self, outro):
+        return None, self.op_ilegal(outro)
+    def elevar_a(self, outro):
+        return None, self.op_ilegal(outro)
+    def compara_eh_igual(self, outro):
+        return None, self.op_ilegal(outro)
+    def compara_n_eh_igual(self, outro):
+        return None, self.op_ilegal(outro)
+    def compara_menor(self, outro):
+        return None, self.op_ilegal(outro)
+    def compara_maior(self, outro):
+        return None, self.op_ilegal(outro)
+    def compara_menor_igual(self, outro):
+        return None, self.op_ilegal(outro)
+    def compara_maior_igual(self, outro):
+        return None, self.op_ilegal(outro)
+    def e_logico(self, outro):
+        return None, self.op_ilegal(outro)
+    def ou_logico(self, outro):
+        return None, self.op_ilegal(outro)
+    def negar(self):
+        return None, self.op_ilegal()
+
+    # Operações de funções
+    def executar(self, args):
+        return ResultadoRT().falha(self.op_ilegal)
+
+    # Operações genéricas
+    def copia(self):
+        raise Exception('Nenhum método de cópia foi definido')
+    def eh_vdd(self):
+        return False
+    
+    # Método que lança o erro RT de operação ilegal para um tipo de valor
+    def op_ilegal(self, outro = None):
+        if not outro:
+            outro = self
+        return erros.ErroRunTime('Operação Ilegal para o tipo de valor', self.pos_com, self.contexto)
+
+# Classe que representa os números
+class Numero(Valor):
+
+    # Método construtor
+    def __init__(self, valor):
+        super().__init__()
+        self.valor = valor
+        self.set_pos()
+        self.set_contexto()
+
+    # Método que mantém registro de onde está o número no código
+    def set_pos(self, pos_com=None):
+        self.pos_com = pos_com
+        return self
+
+    def set_contexto(self, contexto = None):
         self.contexto = contexto
         return self
 
     # Métodos responsáveis pelas operações aritméticas, lógicas e de comparação
     def adicionar_a(self, outro):
         if isinstance(outro, Numero):
-            return Numero(self.valor + outro.valor).def_contexto(self.contexto), None
+            return Numero(self.valor + outro.valor).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def subtrair_de(self, outro):
         if isinstance(outro, Numero):
-            return Numero(self.valor - outro.valor).def_contexto(self.contexto), None
+            return Numero(self.valor - outro.valor).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def multiplicar_por(self, outro):
         if isinstance(outro, Numero):
-            return Numero(self.valor * outro.valor).def_contexto(self.contexto), None
+            return Numero(self.valor * outro.valor).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def dividir_por(self, outro):
         if isinstance(outro, Numero):
             if outro.valor == 0:
                 return None, erros.ErroRunTime("Divisão por 0", outro.pos_com, self.contexto)
-            return Numero(self.valor / outro.valor).def_contexto(self.contexto), None
+            return Numero(self.valor / outro.valor).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def elevar_a(self, outro):
         if isinstance(outro, Numero):
-            return Numero(self.valor ** outro.valor).def_contexto(self.contexto), None
+            return Numero(self.valor ** outro.valor).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def compara_eh_igual(self, outro):
         if isinstance(outro, Numero):
-            return Numero(int(self.valor == outro.valor)).def_contexto(self.contexto), None
+            return Numero(int(self.valor == outro.valor)).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def compara_n_eh_igual(self, outro):
         if isinstance(outro, Numero):
-            return Numero(int(self.valor != outro.valor)).def_contexto(self.contexto), None
+            return Numero(int(self.valor != outro.valor)).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def compara_menor(self, outro):
         if isinstance(outro, Numero):
-            return Numero(int(self.valor < outro.valor)).def_contexto(self.contexto), None
+            return Numero(int(self.valor < outro.valor)).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def compara_maior(self, outro):
         if isinstance(outro, Numero):
-            return Numero(int(self.valor > outro.valor)).def_contexto(self.contexto), None
+            return Numero(int(self.valor > outro.valor)).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def compara_menor_igual(self, outro):
         if isinstance(outro, Numero):
-            return Numero(int(self.valor <= outro.valor)).def_contexto(self.contexto), None
+            return Numero(int(self.valor <= outro.valor)).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def compara_maior_igual(self, outro):
         if isinstance(outro, Numero):
-            return Numero(int(self.valor >= outro.valor)).def_contexto(self.contexto), None
+            return Numero(int(self.valor >= outro.valor)).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def e_logico(self, outro):
         if isinstance(outro, Numero):
-            return Numero(int(self.valor and outro.valor)).def_contexto(self.contexto), None
+            return Numero(int(self.valor and outro.valor)).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def ou_logico(self, outro):
         if isinstance(outro, Numero):
-            return Numero(int(self.valor or outro.valor)).def_contexto(self.contexto), None
+            return Numero(int(self.valor or outro.valor)).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outro)
     def negar(self):
-        return Numero(1 if self.valor == 0 else 0).def_contexto(self.contexto), None
+        return Numero(1 if self.valor == 0 else 0).set_contexto(self.contexto), None
+    def copia(self):
+        copia = Numero(self.valor)
+        copia.set_pos(self.pos_com)
+        copia.set_contexto(self.contexto)
+        return copia
+    def eh_vdd(self):
+        return self.valor != 0
+    def __rep__(self):
+        return str(self.valor)
 
     # Método que devolve se o valor representa verdadeiro ou falso
     def eh_vdd(self):
@@ -236,6 +373,83 @@ class Numero:
     # Método que devolve o número
     def __rep__(self):
         return str(self.valor)
+
+# Classe que representa as funções
+class Funcao(Valor):
+
+    def __init__(self, nome, no_corpo, args):
+        super().__init__()
+        self.nome = nome or "anonima"
+        self.no_corpo = no_corpo
+        self.args = args
+
+    def executar(self, args):
+        resultado = ResultadoRT()
+        interpretador = Interpretador()
+        # Lembrando que sempre que criamos uma nova função criamos também um novo contexto
+        novo_contexto = Contexto(self.nome, self.contexto, self.pos_com)
+        novo_contexto.tabela_simbolos = TabelaSimbolos(novo_contexto.pai.tabela_simbolos)
+
+        # Verificando problema de muitos argumentos passados
+        if len(args) > len(self.args):
+            return resultado.falha(erros.ErroRunTime(f"Muitos argumentos foram passados em {self.nome}",self.pos_com, self.contexto))
+    
+        # Verificando problema de poucos argumentos passados
+        if len(args) < len(self.args):
+        	return resultado.falha(erros.ErroRunTime(f"Poucos argumentos foram passados em {self.nome}",self.pos_com, self.contexto))
+
+        # Para o novo contexto criado vamos adicionar cada variável
+        for i in range(len(args)):
+            nome_arg = self.args[i]
+            valor_arg = args[i]
+            valor_arg.set_contexto(novo_contexto)
+            novo_contexto.tabela_simbolos.set(nome_arg, valor_arg)
+
+        # Chamamos o interpretador para fazer uma visita dentro do contexto criado
+        valor = resultado.registro(interpretador.visita(self.no_corpo, novo_contexto))
+        if resultado.erro: 
+            return resultado
+        return resultado.sucesso(valor)
+
+    def copia(self):
+        copia = Funcao(self.nome, self.no_corpo, self.args)
+        copia.set_contexto(self.contexto)
+        copia.set_pos(self.set_pos)
+        return copia
+
+    def __rep__(self):
+        return f'<função> : {self.nome}'
+
+# Classe que representa Strings
+class String(Valor):
+    
+    def __init__(self, valor):
+        super().__init__()
+        self.valor = valor
+
+    def adicionar_a(self, outra):
+        if isinstance(outra, String):
+            return String(self.valor + outra.valor).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, outra)
+
+    def multiplicar_por(self, vezes):
+        if isinstance(vezes, Numero):
+            return String(self.valor * vezes.valor).set_contexto(self.contexto), None
+        else:
+            return None, Valor.op_ilegal(self, vezes)
+
+    def eh_vdd(self):
+        return len(self.valor)>0
+
+    def copia(self):
+        copia = String(self.valor)
+        copia.set_contexto(self.contexto)
+        copia.set_pos(self.set_pos)
+        return copia
+
+    def __rep__(self):
+        return f'{self.valor}'
 
 ####################################
 ## Classe de Resultados de RunTime ##
@@ -275,9 +489,9 @@ class ResultadoRT:
 class TabelaSimbolos:
 
     # Método construtor
-    def __init__(self):
+    def __init__(self, pai = None):
         self.simbolos = {}
-        self.pai = None
+        self.pai = pai
 
     # Dado o nome de uma variável vamos pegar seu valor
     def get(self, nome_var):
