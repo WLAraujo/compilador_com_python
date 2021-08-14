@@ -39,7 +39,7 @@ class NoOpUnaria:
     def __init__(self, token_op, no):
         self.token_op = token_op
         self.no = no
-        self.pos_com = self.token_op.pos_com
+        self.pos_com = token_op.pos_com
 
     # Método de representação da operação
     def __rep__(self):

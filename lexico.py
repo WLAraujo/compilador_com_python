@@ -210,9 +210,9 @@ class Lexico:
                 str_num += self.char_atual
             self.avan()
         if pontos == 0:
-            return Token(T_INT, int(str_num), pos_com)
+            return Token(T_INT, int(str_num), pos_com = pos_com)
         else:
-            return Token(T_FLOAT, float(str_num), pos_com)
+            return Token(T_FLOAT, float(str_num), pos_com = pos_com)
 
     # Método que cria tokens para identificadores de variáveis
     def cria_ident(self):
@@ -272,9 +272,7 @@ class Lexico:
         if self.char_atual == '>':
             self.avan()
             tipo_token = T_SETA
-        return Token(tipo_token, pos_com)
-
-    
+        return Token(tipo_token, pos_com = pos_com)
 
     def cria_string(self):
         string = ''
