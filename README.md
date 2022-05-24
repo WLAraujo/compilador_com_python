@@ -1,4 +1,4 @@
-# compiladores_ufabc
+# comp_proj_ufabc
 
 Nesse repositório está contido o código do projeto final da disciplina de compiladores da Universidade Federal do ABC. O projeto é de autoria de Wesley Lima de Araujo (RA 11201721514) e consiste na construção de uma versão alternativa da linguagem BASIC usando Python, para isso serão construídos todas as estruturas necessárias para implementar uma linguagem interpretada, como analisadores léxico e sintático, e também um interpretador.
 
